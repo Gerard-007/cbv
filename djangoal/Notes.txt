@@ -1,0 +1,374 @@
+-------------------------url.py---------------------------
+from django.conf.urls import url, include
+from . import views
+
+urlpatterns = [
+    url(r'^$', views.WelcomeView.as_view()),
+]
+
+-------------------------Views.py-------------------------
+from django.views.generic import View
+from django.http import HttpResponse
+
+
+class WelcomeView(View):
+    def get(self, request):
+        return HttpRepsonse('Welcome')
+		
+
+
+============================Template_VIEW=========================
+The <.get_context_data()> method is one that you'll find 
+yourself overriding quite often as you need to 
+just stick one tiny thing into the context dictionary. 
+Remember to use <super()> on this method, though, 
+so you won't miss any context objects from other parts of the view.
+
+------------------------url.py--------------------------
+from django.conf.urls import url, include
+
+from . import views
+
+urlpatterns = [
+    url(r'^$', views.WelcomeView.as_view()),
+    url(r'^name/$', views.NameView.as_view()),
+]
+
+-------------------------views.py-----------------------
+from django.http import HttpResponse
+from django.views.generic import View, TemplateView 
+
+
+class WelcomeView(View):
+    def get(self, request):
+        return HttpResponse("Treehouse!")
+    
+class NameView (TemplateView):
+    template_name = "name.html"
+    
+    #Sending more data to the template...
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['name'] = 'Gerard'
+        return context
+		
+		
+
+====================ListView and DetailView=======================
+If you need or want to get trickier with your <ListView and DetailView> views, 
+you can actually programmatically define the queryset that should be used. 
+Look into the <get_queryset> method if you need this functionality. 
+I'll also cover it later on in the course.
+
+------------------------url.py--------------------------
+from django.conf.urls import url
+from . import views
+
+urlpatterns = [
+    url(r'^$', views.ArticleList.as_view(), name='list'),
+    url(r'^(?P<pk>\d+)/$', views.ArticleDetail.as_view(), name='detail'),
+]
+
+-------------------------views.py-----------------------
+from django.views.generic import ListView, DetailView
+from . import models
+
+
+class ArticleList(ListView):
+    template_name = 'article_list'
+    model = models.Article
+    
+    
+class ArticleDetail(DetailView):
+    model = models.Article
+	template_name = 'article_detail'
+	
+-------------------------article_list.html-----------------------	
+<h1>Articles</h1>
+
+<ul>
+  {% for article in article_list %}
+      <li>
+        {{article.title}}
+      </li>
+  {% endfor %}
+</ul>
+
+
+-------------------------article_detail.html---------------------
+<h1>Article title</h1>
+<p>{{article.author}}</p>
+
+{{article.body|linebreaks}}
+
+
+
+
+=======================CRUD Views=======================
+With these three views, and the ones you've already learned, 
+you can build almost any basic app you need.
+
+
+-------------------------views.py-----------------------
+from django.views.generic import (
+				ListView, DetailView, 
+				CreateView, UpdateView, DeleteView
+				)
+from django.core.urlresolvers import reverse_lazy
+
+from . import models
+
+
+class ArticleList(ListView):
+    model = models.Article
+    template_name = 'articles/article_list.html'
+
+class ArticleDetail(DetailView):
+    model = models.Article
+    template_name = 'articles/article_detail.html'
+
+class ArticleCreate(CreateView):
+    fields = ('title', 'body', 'author', 'published' )
+    model = models.Article
+    template_name = 'articles/article_form.html'
+    
+class ArticleUpdate(UpdateView):
+    fields = ('title', 'body', 'author', 'published' )
+    model = models.Article
+    template_name = 'articles/article_form.html'
+    
+class ArticleDelete(DeleteView):
+    model = models.Article
+    success_url = reverse_lazy('articles:list')
+	
+-------------------------article_form.html-----------------------	
+{% block body_content %}
+	<form method='POST'>
+	  {% csrf_token %}
+	  {{ form.as_p }}
+	  <input type="submit" class="btn btn-primary" value="Save">
+	</form>
+{% endblock %}
+
+-------------------------article_confirm_delete.html---------------------
+{% block body_content %}
+	{{ article.title }}
+	<form method='POST'>
+	  {% csrf_token %}
+	  <input type='submit' value='delete'>
+	  <a href='{% url "articles:detail" pk=article.pk %}'>cancel</a>
+	</form>
+{% endblock %}
+
+
+
+=======================Overriding Methods=======================
+If you've looked around on CCBV <https://ccbv.co.uk/>, you've no doubt seen the sheer gigantic 
+number of methods that are available in your class-based views. 
+Digging into these will open up a huge number of possibilities for 
+you for customizing your views and getting just exactly the output that you want.
+
+-------------------------views.py-----------------------
+from django.views import generic
+from . import models
+
+
+class ArticleList(generic.ListView):
+    model = models.Article
+
+class ArticleDetail(generic.DetailView):
+    model = models.Article
+
+class ArticleCreate(generic.CreateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+class ArticleUpdate(generic.UpdateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+class ArticleDelete(generic.DeleteView):
+    model = models.Article
+
+class ArticleSearch(generic.ListView):
+    model = models.Article
+    
+    def get_queryset(self):
+        term = self.kwargs["term"]
+        if term:
+            return self.model.objects.filter(body__icontains=term)
+        return self.model.objects.none()
+
+
+
+=======================Franken-Views=======================
+This approach has gotten a lot better in recent versions of Django. 
+It used to be a nightmare but now it often just works. 
+I can't tell you how glad I am for that change!
+
+It still isn't the best way to combine view functionality, though. 
+Generally you'll want to combine view classes with mixins to get just the bits 
+and pieces you need. Check out the next video for how to do that.
+
+-------------------------views.py-----------------------
+from django.views import generic
+from . import models
+
+
+class ArticleList(generic.ListView):
+    model = models.Article
+
+class ArticleDetail(generic.DeleteView, generic.DetailView):
+    model = models.Article
+    template_name = "articles/article_detail.html"
+
+class ArticleCreate(generic.CreateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+class ArticleUpdate(generic.UpdateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+class ArticleDelete(generic.DeleteView):
+    model = models.Article
+
+class ArticleSearch(generic.ListView):
+    model = models.Article
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        term = self.kwargs.get('term')
+        if term:
+            return qs.filter(body__icontains=term)
+        return qs.none()
+
+-------------------------article_detail.html---------------------
+<h1>{{ article.title }}</h1>
+<p>By: {{ article.author }}</p>
+
+{{ article.body|linebreaks }}
+
+<hr>
+
+<h1>Delete {{ article.name }}?</h1>
+	
+{% if user.is_authenticated %}
+	<form method='POST'>
+		{% csrf_token %}
+		<input type='submit' class="btn btn-danger" value='delete'>
+		<a href="{% url 'articles:detail' pk=article.pk %}">Cancel</a>
+	</form>
+{% endif %}
+
+
+
+
+=======================Mixins=======================
+I absolutely love mixins for class-based views and find them to be the right 
+balance of customization bonuses versus code and mental work.
+
+If you want to know more about mixins, you can read the <official guide> 
+<https://docs.djangoproject.com/en/1.9/topics/class-based-views/mixins/> to 
+them or check out <django-braces> <https://github.com/brack3t/django-braces> 
+for example code.
+
+-------------------------views.py-----------------------
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+from . import models
+
+
+class ArticleList(generic.ListView):
+    model = models.Article
+
+class ArticleDetail(generic.DeleteView, generic.DetailView):
+    model = models.Article
+    template_name = 'articles/article_detail.html'
+
+class ArticleCreate(LoginRequiredMixin, generic.CreateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+
+class ArticleUpdate(LoginRequiredMixin, generic.UpdateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+
+class ArticleDelete(LoginRequiredMixin, generic.DeleteView):
+    model = models.Article
+
+class ArticleSearch(generic.ListView):
+    model = models.Article
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        term = self.kwargs.get('term')
+        if term:
+            return qs.filter(body__icontains=term)
+        return qs.none()
+
+-------------------------mixins.py-----------------------
+from django.contrib import messages
+
+class SuccessMessageMixin:
+    success_message = ""
+    
+    def get_success_message(self):
+        return self.success_message
+    
+    def form_valid(self, form):
+        messages.success(self.request, self.get_success_message())
+        return super().form_valid(form)
+		
+-------------------------views.py-----------------------		
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.urlresolvers import reverse_lazy
+from django.views import generic
+
+from . import mixins
+from . import models
+
+
+class ArticleList(generic.ListView):
+    model = models.Article
+
+
+class ArticleDetail(generic.DeleteView, generic.DetailView):
+    model = models.Article
+    template_name = 'articles/article_detail.html'
+
+
+class ArticleCreate(LoginRequiredMixin, mixins.SuccessMessageMixin, generic.CreateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+    success_message = "Article created!"
+
+
+class ArticleUpdate(LoginRequiredMixin, mixins.SuccessMessageMixin, generic.UpdateView):
+    fields = ('title', 'body', 'author', 'published')
+    model = models.Article
+    success_message = "Article created!"
+    
+    def get_success_message(self):
+        obj = self.get_object()
+        return "{} updated!".format(obj.title)
+        
+
+class ArticleDelete(LoginRequiredMixin, generic.DeleteView):
+    model = models.Article
+    success_url = reverse_lazy('articles:list')
+
+
+class ArticleSearch(generic.ListView):
+    model = models.Article
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        term = self.kwargs.get('term')
+        if term:
+            return qs.filter(body__icontains=term)
+        return qs.none()
+
+
