@@ -1,2 +1,1 @@
-Username: kennethlove
-Password: testpassword
+This is a team project made with django web framework.
